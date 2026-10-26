@@ -218,3 +218,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project data and experiment tracking (data is downloaded by scripts/download_data.py)
+data/raw/*
+data/processed/*
+!data/**/.gitkeep
+mlruns/
+mlartifacts/

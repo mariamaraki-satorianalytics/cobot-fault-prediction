@@ -1,0 +1,43 @@
+[project]
+name = "cobot-fault-prediction"
+version = "0.1.0"
+description = "Predicting protective stops on a UR3 collaborative robot arm from its joint currents, temperatures and speeds."
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Maria Maraki" }]
+requires-python = ">=3.12"
+dependencies = [
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.4",
+    "openpyxl>=3.1.5",
+    "pandas>=3.1.0",
+    "pydantic>=2.14.1",
+    "pyyaml>=6.0.3",
+    "seaborn>=0.13.2",
+]
+
+[build-system]
+requires = ["uv_build>=0.11,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "cobot"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "N"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.4.0",
+    "nbconvert>=7.17.2",
+    "pre-commit>=4.7.0",
+    "pytest>=9.1.1",
+    "ruff>=0.17.2",
+]
