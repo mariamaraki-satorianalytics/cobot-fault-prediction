@@ -107,7 +107,16 @@ The raw spreadsheet needed real work. Every fix lives in [`cobot.data.clean`](sr
 
 Result: 7,409 raw rows become **7,363 clean rows** with no missing values, split into **two recording sessions** (49 and 76 minutes) about five hours apart.
 
-> **Getting the data.** The data isn't committed to the repo; [`scripts/download_data.py`](scripts/download_data.py) fetches it and checks a SHA-256 checksum. The usual `ucimlrepo` loader doesn't work for this dataset (UCI returns `DatasetNotFoundError` for id 963), so the script downloads the archive from UCI's static file URL. That URL is not an official API. If it ever moves, download the zip manually from the [dataset page](https://archive.ics.uci.edu/dataset/963/ur3+cobotops) and place `dataset_02052023.xlsx` in `data/raw/`; the checksum still verifies it.
+### Where the data lives
+
+Both versions are in the repo, so everything runs straight after cloning:
+
+| Path | Contents |
+|---|---|
+| [`data/raw/dataset_02052023.xlsx`](data/raw/) | The original spreadsheet, unmodified (its SHA-256 checksum is checked in the tests) |
+| [`data/processed/ur3_cobotops_clean.csv`](data/processed/) | The cleaned dataset, 7,363 rows × 24 columns |
+
+> **Original source.** The raw file is published on the [UCI Machine Learning Repository dataset page](https://archive.ics.uci.edu/dataset/963/ur3+cobotops) (DOI [10.24432/C5J891](https://doi.org/10.24432/C5J891)). To get it straight from the source, download the zip from that page, or run `uv run python scripts/prepare_data.py --download`. Either way the checksum confirms it's the same file, and the script rebuilds the cleaned CSV from it.
 
 ---
 
@@ -157,15 +166,17 @@ The full analysis is in [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb). High
 ```
 cobot-fault-prediction/
 ├── configs/config.yaml        # data source, checksum and settings (no magic numbers in code)
-├── data/raw/                  # downloaded dataset (gitignored)
+├── data/
+│   ├── raw/                   # original UCI spreadsheet, unmodified
+│   └── processed/             # cleaned CSV produced by scripts/prepare_data.py
 ├── docs/
 │   ├── ur3.md                 # the UR3 primer with sources
 │   └── img/                   # figures used in this README
 ├── notebooks/01_eda.ipynb     # exploratory analysis; imports from src/
-├── scripts/download_data.py   # fetch + checksum the raw data
+├── scripts/prepare_data.py    # verify the raw data and rebuild the processed CSV
 ├── src/cobot/
 │   ├── config.py              # typed config (pydantic) loaded from YAML
-│   ├── data.py                # download, load and clean
+│   ├── data.py                # download, load, clean and store
 │   ├── labels.py              # fault events -> prediction targets
 │   └── plotting.py            # shared, colour-blind-safe figure style
 ├── tests/                     # pytest unit tests
@@ -191,10 +202,11 @@ Requires [uv](https://docs.astral.sh/uv/) and Python 3.12.
 git clone https://github.com/mariamaraki-satorianalytics/cobot-fault-prediction.git
 cd cobot-fault-prediction
 uv sync                                   # create .venv and install everything
-uv run python scripts/download_data.py    # fetch the dataset into data/raw/
 uv run pytest                             # run the test suite
 uv run pre-commit install                 # lint and format on every commit
 ```
+
+The data is already in `data/`. To rebuild the cleaned CSV after changing the cleaning code, run `uv run python scripts/prepare_data.py`.
 
 Open `notebooks/01_eda.ipynb` in VS Code or Jupyter with the `.venv` kernel to explore the data.
 
@@ -204,7 +216,7 @@ Open `notebooks/01_eda.ipynb` in VS Code or Jupyter with the `.venv` kernel to e
 
 | Milestone | Scope | Status |
 |---|---|---|
-| **M1: data foundation** | uv project, download and cleaning with tests, EDA notebook, README and UR3 primer | ✅ done |
+| **M1: data foundation** | uv project, raw and cleaned data with tests, EDA notebook, README and UR3 primer | ✅ done |
 | **M2: modelling** | Onset labels, physics and rolling-window features (with a leakage test), time-aware CV, baselines vs. Random Forest, evaluation plots, MLflow tracking | ⏳ next |
 | **M3: MLflow in Docker** | `docker compose` MLflow server, model registry with a `champion` alias | |
 | **M4: serving and CI** | FastAPI `/predict` and `/health`, Dockerfile, GitHub Actions (lint, test, build) | |
@@ -224,7 +236,11 @@ Open `notebooks/01_eda.ipynb` in VS Code or Jupyter with the `.venv` kernel to e
 
 The code is released under the [MIT License](LICENSE).
 
-The dataset is © its authors and licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). It isn't redistributed here. If you use it, please cite:
+The dataset is © its authors and licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), not the MIT License. It is redistributed here under that licence:
+- `data/raw/` is the original file, unchanged.
+- `data/processed/` is an adapted version: cleaned as described in [Cleaning](#cleaning) (renamed columns, parsed timestamps, dropped empty rows, imputed partial rows, zeroed float noise, integer targets, added session ids).
+
+If you use the data, please cite:
 
 ```bibtex
 @misc{ur3_cobotops,
