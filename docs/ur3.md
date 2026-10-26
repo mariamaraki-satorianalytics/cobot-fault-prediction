@@ -17,7 +17,16 @@ Whether an application still needs guarding is decided by its own risk assessmen
 
 The UR3 is Universal Robots' compact, table-top arm. Like the rest of the UR family it is a **six-axis serial arm**: six rotating joints in a chain from the base to the tool. Six joints are what an arm needs to reach a point in space (3 degrees of freedom) *and* hold the tool at any orientation there (3 more).
 
-<p align="center"><img src="img/ur3_joints.svg" alt="UR3 joint layout J0 to J5" width="640"></p>
+<p align="center">
+  <img src="img/ur5_cobot_growskills.jpg" alt="A Universal Robots UR5 cobot arm with a gripper, mounted on a flight case with its teach pendant below" height="340">
+  &nbsp;
+  <img src="img/ur3_joints.svg" alt="UR3 joint layout J0 to J5" width="520">
+</p>
+<p align="center"><sub>
+  <b>Left:</b> a UR5 from the same Universal Robots family (the UR3 is the smaller model with the same six-joint layout).
+  Photo by GrowSkills Robotics, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via <a href="https://commons.wikimedia.org/wiki/File:Cobot.jpg">Wikimedia Commons</a> (cropped and resized).
+  <b>Right:</b> simplified joint layout, J0–J5 as named in the dataset.
+</sub></p>
 
 | Joint (dataset) | UR name | Role |
 |---|---|---|

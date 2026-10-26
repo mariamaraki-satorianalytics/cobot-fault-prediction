@@ -28,7 +28,16 @@ An end-to-end machine learning project on real sensor data from an industrial co
 
 ## What is a UR3 cobot?
 
-<p align="center"><img src="docs/img/ur3_joints.svg" alt="Simplified side view of a UR3 arm with joints J0 to J5 labelled" width="620"></p>
+<p align="center">
+  <img src="docs/img/ur5_cobot_growskills.jpg" alt="A Universal Robots UR5 cobot arm with a gripper, mounted on a flight case with its teach pendant below" height="340">
+  &nbsp;
+  <img src="docs/img/ur3_joints.svg" alt="Simplified side view of a UR3 arm with joints J0 to J5 labelled" width="520">
+</p>
+<p align="center"><sub>
+  <b>Left:</b> a UR5, the UR3's larger sibling from the same Universal Robots family, fitted with a gripper; the teach pendant with its red emergency-stop button sits below.
+  Photo by GrowSkills Robotics, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, via <a href="https://commons.wikimedia.org/wiki/File:Cobot.jpg">Wikimedia Commons</a> (cropped and resized).
+  <b>Right:</b> the six joints J0–J5 as they appear in the dataset's columns.
+</sub></p>
 
 ### Collaborative robots
 
@@ -238,5 +247,7 @@ The dataset is © its authors and licensed under [CC BY 4.0](https://creativecom
   doi       = {10.1007/978-3-031-63851-0_6}
 }
 ```
+
+The cobot photo in `docs/img/ur5_cobot_growskills.jpg` is a cropped, resized version of [Cobot.jpg](https://commons.wikimedia.org/wiki/File:Cobot.jpg) by GrowSkills Robotics. It is licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), not the MIT License, and the adapted version carries the same licence.
 
 UR3 background facts link to Universal Robots' public documentation; Universal Robots is not affiliated with this project.
