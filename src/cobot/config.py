@@ -14,11 +14,17 @@ class DataConfig(BaseModel):
     file_name: str
     sha256: str
     raw_dir: Path
+    processed_dir: Path
+    processed_file_name: str
     session_gap_s: PositiveFloat
 
     @property
     def raw_path(self) -> Path:
         return PROJECT_ROOT / self.raw_dir / self.file_name
+
+    @property
+    def processed_path(self) -> Path:
+        return PROJECT_ROOT / self.processed_dir / self.processed_file_name
 
 
 class Config(BaseModel):

@@ -3,7 +3,16 @@ import pandas as pd
 import pytest
 
 from cobot.config import load_config
-from cobot.data import SENSORS, SPEEDS, TARGETS, add_session_ids, clean
+from cobot.data import (
+    SENSORS,
+    SPEEDS,
+    TARGETS,
+    add_session_ids,
+    clean,
+    read_processed,
+    sha256,
+    write_processed,
+)
 
 RAW_SENSORS = [
     *(f"{kind}_J{i}" for i in range(6) for kind in ("Current", "Temperature")),
@@ -71,7 +80,14 @@ def test_sessions_split_on_long_gaps():
     assert add_session_ids(ts, gap_s=60).tolist() == [0, 0, 0, 1]
 
 
-def test_config_loads():
+def test_processed_csv_round_trips(raw, tmp_path):
+    df = clean(raw, session_gap_s=60)
+    path = tmp_path / "clean.csv"
+    write_processed(df, path)
+    pd.testing.assert_frame_equal(read_processed(path), df, check_dtype=False)
+    assert isinstance(read_processed(path)["timestamp"].dtype, pd.DatetimeTZDtype)
+
+
+def test_committed_raw_file_matches_checksum():
     cfg = load_config().data
-    assert cfg.raw_path.name == "dataset_02052023.xlsx"
-    assert len(cfg.sha256) == 64
+    assert sha256(cfg.raw_path) == cfg.sha256

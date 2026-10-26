@@ -1,4 +1,4 @@
-"""Download, load and clean the UR3 CobotOps dataset."""
+"""Download, load, clean and store the UR3 CobotOps dataset."""
 
 import hashlib
 import io
@@ -66,3 +66,12 @@ def clean(raw: pd.DataFrame, session_gap_s: float) -> pd.DataFrame:
 
 def load_dataset(cfg: DataConfig) -> pd.DataFrame:
     return clean(pd.read_excel(cfg.raw_path), cfg.session_gap_s)
+
+
+def write_processed(df: pd.DataFrame, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(path, index=False)
+
+
+def read_processed(path: Path) -> pd.DataFrame:
+    return pd.read_csv(path, parse_dates=["timestamp"])
