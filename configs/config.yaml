@@ -1,0 +1,10 @@
+data:
+  # Original source: https://archive.ics.uci.edu/dataset/963/ur3+cobotops (CC BY 4.0)
+  url: https://archive.ics.uci.edu/static/public/963/ur3+cobotops.zip
+  file_name: dataset_02052023.xlsx
+  sha256: f0f10917de9056908a82cec1aa459ddf9da2d2db70d269b128f99241c8796091
+  raw_dir: data/raw
+  processed_dir: data/processed
+  processed_file_name: ur3_cobotops_clean.csv
+  # Gaps longer than this start a new recording session.
+  session_gap_s: 60
