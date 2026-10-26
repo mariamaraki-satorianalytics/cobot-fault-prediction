@@ -1,0 +1,8 @@
+data:
+  # The UCI static archive (not an official API; see README if it moves).
+  url: https://archive.ics.uci.edu/static/public/963/ur3+cobotops.zip
+  file_name: dataset_02052023.xlsx
+  sha256: f0f10917de9056908a82cec1aa459ddf9da2d2db70d269b128f99241c8796091
+  raw_dir: data/raw
+  # Gaps longer than this start a new recording session.
+  session_gap_s: 60
