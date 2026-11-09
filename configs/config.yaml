@@ -43,5 +43,7 @@ model:
       max_features: [sqrt, 0.3, 0.5]
 
 mlflow:
+  # Local default; train against the docker compose server with --tracking-uri http://localhost:5000
   tracking_uri: sqlite:///mlflow.db  # relative paths resolve from the project root
   experiment: cobot-fault-prediction
+  registered_model_prefix: cobot  # registered models are named cobot-<target>, e.g. cobot-protective-stop

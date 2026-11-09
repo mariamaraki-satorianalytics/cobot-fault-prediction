@@ -52,6 +52,7 @@ class ModelConfig(BaseModel):
 class MlflowConfig(BaseModel):
     tracking_uri: str
     experiment: str
+    registered_model_prefix: str
 
     @property
     def resolved_uri(self) -> str:
