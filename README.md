@@ -8,7 +8,7 @@ Predicting faults on a UR3 collaborative robot arm from its joint currents, temp
 
 An end-to-end machine learning project on real sensor data from an industrial cobot: data cleaning, physics-informed exploratory analysis, time-aware modelling with scikit-learn, experiment tracking with MLflow, and a FastAPI service, all packaged with Docker.
 
-> **Status:** milestones 1–2 of 4 are done. A random forest warns of 33 of 38 protective stops up to 5 s before they happen in a held-out test period (PR-AUC 0.46 vs. 0.12 for chance). See the [results](docs/results.md) and the [roadmap](docs/roadmap.md).
+> **Status:** milestones 1–3 of 4 are done. A random forest warns of 33 of 38 protective stops up to 5 s before they happen in a held-out test period (PR-AUC 0.46 vs. 0.12 for chance). See the [results](docs/results.md) and the [roadmap](docs/roadmap.md).
 
 ---
 
@@ -122,13 +122,15 @@ cobot-fault-prediction/
 │   ├── models.py              # registry of candidate classifiers
 │   ├── evaluate.py            # metrics (PR-AUC, event recall, ...) and figures
 │   ├── train.py               # `cobot-train` CLI: CV, tuning, test, MLflow logging
+│   ├── registry.py            # model versions and the `champion` alias
 │   └── plotting.py            # shared, colour-blind-safe figure style
 ├── tests/                     # pytest unit tests
+├── docker-compose.yml         # MLflow tracking server + model registry
 ├── pyproject.toml / uv.lock   # dependencies (uv)
 └── .pre-commit-config.yaml    # ruff lint + format on every commit
 ```
 
-Coming in later milestones: a FastAPI app, a `Dockerfile`, `docker-compose.yml` (MLflow and the API) and GitHub Actions CI.
+Coming in milestone 4: a FastAPI app, its `Dockerfile` and compose service, and GitHub Actions CI.
 
 **Design principles:**
 - Reusable logic lives in a small, typed package; notebooks only explore.
@@ -152,12 +154,14 @@ uv run pre-commit install                 # lint and format on every commit
 
 The data is already in `data/`. To rebuild the cleaned CSV after changing the cleaning code, run `uv run python scripts/prepare_data.py`.
 
-Train and compare the models, then browse the runs in MLflow:
+Start the MLflow server in Docker, then train and compare the models against it:
 
 ```bash
-uv run cobot-train                                          # protective stops (add --target grip_lost for grip losses)
-uv run mlflow ui --backend-store-uri sqlite:///mlflow.db    # open http://localhost:5000
+docker compose up -d mlflow                                 # MLflow UI at http://localhost:5000
+uv run cobot-train --tracking-uri http://localhost:5000     # protective stops (add --target grip_lost)
 ```
+
+Each run registers its best model and moves the `champion` alias to it if it beats the current one. Without Docker, leave out `--tracking-uri` and runs go to a local `mlflow.db` instead (`uv run mlflow ui --backend-store-uri sqlite:///mlflow.db` to browse them).
 
 Open `notebooks/01_eda.ipynb` in VS Code or Jupyter with the `.venv` kernel to explore the data.
 
@@ -178,6 +182,7 @@ Open `notebooks/01_eda.ipynb` in VS Code or Jupyter with the `.venv` kernel to e
 | [`docs/data.md`](docs/data.md) | Every issue found in the raw file, how it was cleaned, and raw vs. cleaned row counts |
 | [`docs/analysis.md`](docs/analysis.md) | Why the model forecasts stops 5 s ahead instead of classifying the current row, plus the main EDA findings and figures |
 | [`docs/results.md`](docs/results.md) | Modelling method, model comparison, metrics and figures, and limitations |
+| [`docs/mlflow.md`](docs/mlflow.md) | The Dockerised MLflow server, what each run records, and the model registry's `champion` rule |
 | [`docs/roadmap.md`](docs/roadmap.md) | The four milestones and their status |
 | [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb) | The full exploratory analysis with code |
 
