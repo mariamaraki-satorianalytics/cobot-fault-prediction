@@ -8,3 +8,40 @@ data:
   processed_file_name: ur3_cobotops_clean.csv
   # Gaps longer than this start a new recording session.
   session_gap_s: 60
+
+features:
+  # Signals summarised over rolling windows (all created by PhysicsFeatures or present in the data).
+  signals:
+    - total_abs_current
+    - abs_current_j0
+    - abs_current_j1
+    - abs_current_j2
+    - abs_current_j3
+    - abs_current_j4
+    - abs_current_j5
+    - mean_abs_speed
+    - tool_current
+  windows: [5, 15]  # seconds (samples at ~1 Hz)
+  temperature_window: 30  # seconds over which the heating rate is measured
+
+model:
+  horizon_s: 5  # predict an onset within the next N samples
+  test_fraction: 0.2  # the latest share of the data, held out until the end
+  cv_splits: 5  # forward-chaining folds on the training period
+  candidates: [dummy, logistic_regression, random_forest, hist_gradient_boosting]
+  params:
+    logistic_regression: {C: 0.1}
+    random_forest: {n_estimators: 200, random_state: 42}
+    hist_gradient_boosting: {learning_rate: 0.1, max_iter: 100, random_state: 42}
+  # Randomised hyperparameter search for the random forest, scored by PR-AUC.
+  search:
+    model: random_forest
+    n_iter: 10
+    space:
+      max_depth: [null, 6, 10, 16]
+      min_samples_leaf: [1, 5, 10, 20]
+      max_features: [sqrt, 0.3, 0.5]
+
+mlflow:
+  tracking_uri: sqlite:///mlflow.db  # relative paths resolve from the project root
+  experiment: cobot-fault-prediction
