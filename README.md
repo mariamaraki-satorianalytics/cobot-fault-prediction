@@ -8,7 +8,7 @@ Predicting faults on a UR3 collaborative robot arm from its joint currents, temp
 
 An end-to-end machine learning project on real sensor data from an industrial cobot: data cleaning, physics-informed exploratory analysis, time-aware modelling with scikit-learn, experiment tracking with MLflow, and a FastAPI service, all packaged with Docker.
 
-> **Status:** milestone 1 of 4 (data foundation and EDA) is done. See the [roadmap](#roadmap).
+> **Status:** milestone 1 of 4 (data foundation and EDA) is done. See the [roadmap](docs/roadmap.md).
 
 ---
 
@@ -16,13 +16,10 @@ An end-to-end machine learning project on real sensor data from an industrial co
 
 1. [What is a UR3 cobot?](#what-is-a-ur3-cobot)
 2. [The dataset](#the-dataset)
-3. [Problem framing](#problem-framing)
-4. [What the data shows](#what-the-data-shows)
-5. [Project structure](#project-structure)
-6. [Getting started](#getting-started)
-7. [Roadmap](#roadmap)
-8. [Git workflow](#git-workflow)
-9. [Citation and licence](#citation-and-licence)
+3. [Project structure](#project-structure)
+4. [Getting started](#getting-started)
+5. [Documentation](#documentation)
+6. [Citation and licence](#citation-and-licence)
 
 ---
 
@@ -91,73 +88,18 @@ A UR3 is a six-joint cobot whose controller halts the arm with a protective stop
 | Process | `cycle` (operation cycle counter), `Timestamp` | |
 | **Targets** | `Robot_ProtectiveStop`, `grip_lost` | 0/1 |
 
-### Cleaning
-
-The raw spreadsheet needed real work. Every fix lives in [`cobot.data.clean`](src/cobot/data.py) and is unit-tested:
-
-| Issue in the raw file | Fix |
-|---|---|
-| A column named `cycle ` with a trailing space; mixed casing | Strip names and convert to snake_case |
-| Joint 0's temperature is named `Temperature_T0` | Rename to `temperature_j0` |
-| 863 timestamps wrapped in literal `"` quotes | Strip quotes, parse as UTC datetimes |
-| 46 rows with every sensor missing | Drop them |
-| 8 rows that kept only `Current_J0` | Forward-fill within the session (the previous 1 Hz sample is the best estimate) |
-| 1,802 speed values like `1e-44` | Set to exactly 0: float noise where the joint is at rest |
-| One target is a float with NaNs, the other a bool | Cast both to integers |
-
-Result: 7,409 raw rows become **7,363 clean rows** with no missing values, split into **two recording sessions** (49 and 76 minutes) about five hours apart.
-
 ### Where the data lives
 
 Both versions are in the repo, so everything runs straight after cloning:
 
-| Path | Contents |
-|---|---|
-| [`data/raw/dataset_02052023.xlsx`](data/raw/) | The original spreadsheet, unmodified (its SHA-256 checksum is checked in the tests) |
-| [`data/processed/ur3_cobotops_clean.csv`](data/processed/) | The cleaned dataset, 7,363 rows × 24 columns |
+| Path | Contents | Rows × columns |
+|---|---|---|
+| [`data/raw/dataset_02052023.xlsx`](data/raw/) | The original spreadsheet, unmodified (its SHA-256 checksum is checked in the tests) | 7,409 × 24 |
+| [`data/processed/ur3_cobotops_clean.csv`](data/processed/) | The cleaned dataset, with no missing values | 7,363 × 24 |
+
+What was wrong with the raw file and how each issue was fixed is in [`docs/data.md`](docs/data.md).
 
 > **Original source.** The raw file is published on the [UCI Machine Learning Repository dataset page](https://archive.ics.uci.edu/dataset/963/ur3+cobotops) (DOI [10.24432/C5J891](https://doi.org/10.24432/C5J891)). To get it straight from the source, download the zip from that page, or run `uv run python scripts/prepare_data.py --download`. Either way the checksum confirms it's the same file, and the script rebuilds the cleaned CSV from it.
-
----
-
-## Problem framing
-
-The obvious approach is to train a classifier to predict `Robot_ProtectiveStop` from the sensor readings in the *same row*. That leaks the answer:
-
-<p align="center"><img src="docs/img/eda_speed_during_stop.png" alt="Mean joint speed is roughly ten times lower during protective stops" width="720"></p>
-
-Once a stop fires, the controller brakes the arm, so mean joint speed collapses by roughly an order of magnitude. A same-row classifier would mostly learn "the arm isn't moving". Its scores would look excellent, but it could never warn anyone.
-
-**So the task is forecasting.** The label at time *t* is *"a protective stop starts within the next 5 seconds"*:
-- Features use only samples up to *t*.
-- Rows already inside a stop are excluded.
-- `grip_lost` is a secondary target with the same framing.
-
-The model is still a classifier (a Random Forest, compared against simple baselines), but now it does something useful.
-
-Is a 5 s warning realistic? Aligning all 107 complete stop events on their onset shows that the signal is there:
-
-<p align="center"><img src="docs/img/eda_event_profiles.png" alt="Total joint current rises over the seconds before a protective stop" width="820"></p>
-
-Total joint current rises from a ~4.3 A baseline to ~6.7 A over the 2–3 s before a protective stop. Since current is a proxy for torque, the arm is working against something before the controller gives up. Grip losses show no comparable precursor in these channels, so they're expected to be the harder target.
-
----
-
-## What the data shows
-
-The full analysis is in [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb). Highlights:
-
-<p align="center"><img src="docs/img/eda_timeline.png" alt="Arm load, joint temperatures and fault events across both sessions" width="900"></p>
-
-- **Faults are rare and short.** 3.8% of rows are protective stops (108 events) and 3.3% are grip losses (74 events), with a median event length of 2 s. The modelling has to handle imbalanced classes: PR-AUC and recall, never accuracy.
-- **The morning session is a thermal warm-up.** Every joint heats by 6–10 °C, while the afternoon session sits near equilibrium. Stops are more frequent in the afternoon, so absolute temperature is confounded with time of day. Features use the *rate* of temperature change, and the test set is always the latest data.
-- **The physics checks out.** At standstill the shoulder (J1, −2.1 A) and elbow (J2, −1.0 A) draw holding current against gravity while the base draws about 0 A, which is static torque balance seen through a current sensor. Raw currents therefore carry pose-dependent offsets, so features focus on changes.
-- **The temperatures are redundant.** All six correlate at r ≥ 0.99, so they carry one signal, not six.
-
-<p align="center">
-  <img src="docs/img/eda_holding_current.png" alt="Holding current per joint at standstill" width="560">
-  <img src="docs/img/eda_correlation.png" alt="Correlation matrix of sensor channels" width="380">
-</p>
 
 ---
 
@@ -169,9 +111,7 @@ cobot-fault-prediction/
 ├── data/
 │   ├── raw/                   # original UCI spreadsheet, unmodified
 │   └── processed/             # cleaned CSV produced by scripts/prepare_data.py
-├── docs/
-│   ├── ur3.md                 # the UR3 primer with sources
-│   └── img/                   # figures used in this README
+├── docs/                      # detailed documentation (see below) and figures
 ├── notebooks/01_eda.ipynb     # exploratory analysis; imports from src/
 ├── scripts/prepare_data.py    # verify the raw data and rebuild the processed CSV
 ├── src/cobot/
@@ -210,25 +150,24 @@ The data is already in `data/`. To rebuild the cleaned CSV after changing the cl
 
 Open `notebooks/01_eda.ipynb` in VS Code or Jupyter with the `.venv` kernel to explore the data.
 
----
-
-## Roadmap
-
-| Milestone | Scope | Status |
-|---|---|---|
-| **M1: data foundation** | uv project, raw and cleaned data with tests, EDA notebook, README and UR3 primer | ✅ done |
-| **M2: modelling** | Onset labels, physics and rolling-window features (with a leakage test), time-aware CV, baselines vs. Random Forest, evaluation plots, MLflow tracking | ⏳ next |
-| **M3: MLflow in Docker** | `docker compose` MLflow server, model registry with a `champion` alias | |
-| **M4: serving and CI** | FastAPI `/predict` and `/health`, Dockerfile, GitHub Actions (lint, test, build) | |
-
----
-
-## Git workflow
+### Git workflow
 
 - `main` holds released milestones; `dev` is the integration branch.
 - Work is committed to `dev` (or short-lived feature branches off it) and merged into `main` through a pull request at the end of each milestone.
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `test:`, `chore:`).
 - Pre-commit hooks run ruff (lint and format) and basic file checks before every commit.
+
+---
+
+## Documentation
+
+| Page | What it covers |
+|---|---|
+| [`docs/ur3.md`](docs/ur3.md) | The UR3 cobot in depth: specs, joint physics, protective vs. emergency stops, how the data was logged, with sources |
+| [`docs/data.md`](docs/data.md) | Every issue found in the raw file, how it was cleaned, and raw vs. cleaned row counts |
+| [`docs/analysis.md`](docs/analysis.md) | Why the model forecasts stops 5 s ahead instead of classifying the current row, plus the main EDA findings and figures |
+| [`docs/roadmap.md`](docs/roadmap.md) | The four milestones and their status |
+| [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb) | The full exploratory analysis with code |
 
 ---
 
@@ -238,7 +177,7 @@ The code is released under the [MIT License](LICENSE).
 
 The dataset is © its authors and licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), not the MIT License. It is redistributed here under that licence:
 - `data/raw/` is the original file, unchanged.
-- `data/processed/` is an adapted version: cleaned as described in [Cleaning](#cleaning) (renamed columns, parsed timestamps, dropped empty rows, imputed partial rows, zeroed float noise, integer targets, added session ids).
+- `data/processed/` is an adapted version: cleaned as described in [`docs/data.md`](docs/data.md) (renamed columns, parsed timestamps, dropped empty rows, imputed partial rows, zeroed float noise, integer targets, added session ids).
 
 If you use the data, please cite:
 
