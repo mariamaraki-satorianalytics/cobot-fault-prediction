@@ -5,12 +5,14 @@ Usage: uv run cobot-train [--target protective_stop|grip_lost] [--save-figures]
 
 import argparse
 import os
+import sys
 from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
 import mlflow
 import pandas as pd
 import skops.io
+from mlflow import MlflowClient
 from mlflow.models import infer_signature
 from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
 from sklearn.pipeline import Pipeline
@@ -32,6 +34,7 @@ from cobot.features import make_feature_pipeline
 from cobot.labels import event_onsets, make_onset_target
 from cobot.models import build_model
 from cobot.plotting import apply_style, save
+from cobot.registry import CHAMPION, promote_if_better, registered_name
 
 FIGURES_DIR = PROJECT_ROOT / "docs" / "img"
 
@@ -146,11 +149,20 @@ def main() -> None:
     parser.add_argument(
         "--save-figures", action="store_true", help=f"also write figures to {FIGURES_DIR}"
     )
+    parser.add_argument(
+        "--tracking-uri",
+        help="MLflow server, e.g. http://localhost:5000 for the docker compose service "
+        "(default: $MLFLOW_TRACKING_URI, else the local sqlite file in the config)",
+    )
     args = parser.parse_args()
+    # MLflow prints emoji run links; don't crash on consoles that can't encode them (e.g. cp1252).
+    sys.stdout.reconfigure(errors="backslashreplace")
 
     cfg = load_config()
     apply_style()
-    mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", cfg.mlflow.resolved_uri))
+    mlflow.set_tracking_uri(
+        args.tracking_uri or os.environ.get("MLFLOW_TRACKING_URI") or cfg.mlflow.resolved_uri
+    )
     mlflow.set_experiment(cfg.mlflow.experiment)
 
     data = prepare(cfg, args.target)
@@ -184,24 +196,32 @@ def main() -> None:
         print(f"\nBest model by CV PR-AUC: {best}")
 
         served = Pipeline([("features", data.features), ("model", results[best]["model"])])
-        log_served_model(served, data.raw[["session_id", *SENSORS]].head(20))
+        name = registered_name(cfg.mlflow.registered_model_prefix, args.target)
+        version = log_served_model(served, data.raw[["session_id", *SENSORS]].head(20), name)
+
+    promoted = promote_if_better(MlflowClient(), name, version, results[best]["cv"]["pr_auc"])
+    status = f"is now @{CHAMPION}" if promoted else f"registered; @{CHAMPION} unchanged"
+    print(f"Model {name} version {version} {status}")
 
 
-def log_served_model(served: Pipeline, example: pd.DataFrame) -> None:
-    """Log features + model as one object: raw sensor readings in, probability out.
+def log_served_model(served: Pipeline, example: pd.DataFrame, registered_name: str) -> str:
+    """Log and register features + model as one object: raw readings in, probabilities out.
 
     MLflow stores scikit-learn models with skops, which only reloads types it is told to trust.
     We trust our own feature classes and the scikit-learn internals of the model we just trained.
+    Returns the new registered model version.
     """
     untrusted = skops.io.get_untrusted_types(data=skops.io.dumps(served))
-    mlflow.sklearn.log_model(
+    info = mlflow.sklearn.log_model(
         served,
         name="model",
         input_example=example,
         signature=infer_signature(example, served.predict_proba(example)),
         pyfunc_predict_fn="predict_proba",
         skops_trusted_types=[t for t in untrusted if t.startswith(("cobot.", "sklearn."))],
+        registered_model_name=registered_name,
     )
+    return str(info.registered_model_version)
 
 
 if __name__ == "__main__":
